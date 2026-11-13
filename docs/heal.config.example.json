@@ -1,0 +1,20 @@
+{
+  "baseUrl": "https://staging.example.com",
+  "minConfidence": 0.7,
+  "session": {
+    "steps": [
+      { "action": "goto", "url": "/login" },
+      { "action": "fill", "locator": "(By.ID, \"email\")", "value": "${ENV:APP_USER}" },
+      { "action": "fill", "locator": "(By.ID, \"password\")", "value": "${ENV:APP_PASSWORD}" },
+      { "action": "click", "locator": "(By.CSS_SELECTOR, \"button[type='submit']\")" },
+      { "action": "wait_for", "locator": "(By.CSS_SELECTOR, \"[data-testid='account-menu']\")" }
+    ]
+  },
+  "targets": [
+    {
+      "spec": "tests/test_checkout.py",
+      "url": "/checkout",
+      "session": { "storage_state": ".qa-mcp/auth/default.json" }
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "k11-selenium-qa-mcp"
+version = "0.1.0"
+description = "MCP server and Claude Code plugin for Selenium QA: verified locators, user story to pytest, and self-healing locators with an audit trail."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "K11 Software Solutions" }]
+requires-python = ">=3.10"
+keywords = ["mcp", "selenium", "self-healing", "test-automation", "pytest", "claude", "qa"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Framework :: Pytest",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Testing",
+]
+dependencies = ["mcp>=1.20,<2", "selenium>=4.27"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-timeout>=2"]
+
+[project.urls]
+Homepage = "https://github.com/K11-Software-Solutions/k11techlab-selenium-qa-mcp"
+Issues = "https://github.com/K11-Software-Solutions/k11techlab-selenium-qa-mcp/issues"
+
+[project.scripts]
+k11-selenium-qa-mcp = "k11_selenium_qa.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/k11_selenium_qa"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "README.md", "LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["fixtures", ".tmp*"]
+timeout = 300

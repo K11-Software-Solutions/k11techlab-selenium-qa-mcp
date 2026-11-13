@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "selenium-qa": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/K11-Software-Solutions/k11techlab-selenium-qa-mcp", "k11-selenium-qa-mcp"]
+    }
+  }
+}

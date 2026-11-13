@@ -1,0 +1,14 @@
+{
+  "name": "k11-selenium-qa",
+  "owner": {
+    "name": "K11 Software Solutions",
+    "url": "https://k11softwaresolutions.com"
+  },
+  "plugins": [
+    {
+      "name": "selenium-qa",
+      "source": "./",
+      "description": "User stories to verified Selenium + pytest tests, structured test runs and self-healing locators with an audit trail."
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+# Copy to .github/workflows/heal-locators.yml in the repository that holds your Selenium tests.
+#
+# Runs your pytest suite, heals locators broken by UI changes, re-runs the healed tests,
+# and opens a pull request whose description is the audit report: every change with its
+# confidence, reasons, runner-up candidate and re-run result. Nothing reaches your main
+# branch without review.
+name: Heal locators
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1-5" # weekdays 06:00 UTC
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  heal:
+    runs-on: ubuntu-latest # Chrome is preinstalled
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: pip install git+https://github.com/K11-Software-Solutions/k11techlab-selenium-qa-mcp
+
+      # Point the tests at the environment under test (or start the app here).
+      - name: Heal broken locators
+        id: heal
+        run: k11-selenium-qa-mcp heal-ci --apply
+        env:
+          BASE_URL: https://staging.example.com
+          # Referenced from .qa-mcp/heal.config.json as ${ENV:APP_USER} / ${ENV:APP_PASSWORD}
+          APP_USER: ${{ secrets.APP_USER }}
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: heal-report
+          path: .qa-mcp/heal-report/
+
+      - name: Open pull request
+        if: steps.heal.outputs.healed != '0'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: bot/heal-locators
+          title: "Heal ${{ steps.heal.outputs.healed }} broken Selenium locator(s)"
+          body-path: ${{ steps.heal.outputs.report }}
+          commit-message: "Heal broken locators (k11-selenium-qa-mcp heal-ci)"
+          add-paths: |
+            tests/**
+            **/*.py
+          labels: test-maintenance
