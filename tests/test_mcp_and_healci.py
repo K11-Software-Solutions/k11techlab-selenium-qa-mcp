@@ -26,6 +26,10 @@ def test_mcp_tools_over_protocol(demo, tmp_path, monkeypatch, creds):
 
     async def go():
         async with create_connected_server_and_client_session(create_server()._mcp_server) as client:
+            from k11_selenium_qa import VERSION
+
+            info = await client.initialize()
+            assert (info.serverInfo.name, info.serverInfo.version) == ("k11-selenium-qa", VERSION)
             tools = sorted(t.name for t in (await client.list_tools()).tools)
             assert tools == ["capture_baseline", "check_locator", "explore_page", "heal_locator", "parse_user_story",
                              "run_tests", "save_login_state", "write_test"]

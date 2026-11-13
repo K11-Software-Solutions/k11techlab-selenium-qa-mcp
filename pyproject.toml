@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "k11-selenium-qa-mcp"
-version = "0.2.0"
+version = "0.2.1"
 description = "MCP server and Claude Code plugin for Selenium QA in Python and Java: verified locators, user story to tests, and self-healing locators with an audit trail."
 readme = "README.md"
 license = "MIT"

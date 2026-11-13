@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 (13 November 2026)
+
+- The server now reports its own version (`0.2.1`) to MCP clients and directories, instead of the MCP SDK's version.
+
 ## 0.2.0 (13 November 2026): Java support
 
 - **Java projects:** JUnit 5 and TestNG suites run with Maven or Gradle (or their wrappers). The project's language is detected from `pom.xml` / `build.gradle`, or set with `QA_MCP_LANGUAGE`.

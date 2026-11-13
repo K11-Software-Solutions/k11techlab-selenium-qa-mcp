@@ -1,6 +1,6 @@
 {
   "name": "selenium-qa",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Turn user stories into verified Selenium tests (pytest, JUnit 5 or TestNG) and heal broken locators with an audit trail. MCP tools for page exploration, guarded test writing, structured test runs and self-healing locators, including Page Objects and @FindBy.",
   "author": {
     "name": "Kavita A. Jadhav",

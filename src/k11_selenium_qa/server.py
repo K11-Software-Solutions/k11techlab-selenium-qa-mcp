@@ -232,6 +232,9 @@ def create_server() -> FastMCP:
             "5. When it passes, call capture_baseline with the URL and the locators the test uses."
         )
 
+    # FastMCP (mcp 1.x) has no version argument and would report the SDK's version
+    # to clients; set our own on the underlying server instead.
+    mcp._mcp_server.version = VERSION
     return mcp
 
 
