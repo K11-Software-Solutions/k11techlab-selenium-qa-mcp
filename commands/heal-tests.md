@@ -1,16 +1,16 @@
 ---
 description: Run Selenium tests and repair locators broken by UI changes
-argument-hint: [test file or node id]
+argument-hint: [test file, node id, or Java Class#method]
 ---
 
 Repair Selenium tests whose locators broke because the UI changed, using the selenium-qa MCP tools.
 
-Input: $ARGUMENTS (optional test file or pytest node id)
+Input: $ARGUMENTS (optional pytest file / node id, or Java `Class` / `Class#method`)
 
 1. Call `run_tests` (for the given target, if any).
-2. For each failure with a `failingLocator`, call `heal_locator` with the `page` it reports. If the page needs a login or steps to reach, pass a `session` (check `.qa-mcp/heal.config.json` first).
+2. For each failure with a `failingLocator`, call `heal_locator` on the page the test was on: the `page` the run reports (Python), else the page in `.qa-mcp/baselines.json` that has this locator, else ask. If the page needs a login or steps to reach, pass a `session` (check `.qa-mcp/heal.config.json` first).
 3. Act on the result:
-   - `healed`: replace the old locator with `suggestion` where it is defined (often a Page Object, not the test).
+   - `healed`: replace the old locator with `suggestion` where it is defined (often a Page Object or a `@FindBy`, not the test; `locatorFile` and `locatorLine` say where).
    - `needs_review` or `ambiguous`: show the user the candidates, scores and reasons, and ask which is right before editing.
    - `not_found`: the element may have been removed. Report it; do not invent a locator.
 4. Leave failures that are not locator problems untouched and list them separately; they may be real bugs.

@@ -31,6 +31,11 @@ jobs:
           grep -q "VERSION = \"$v\"" src/k11_selenium_qa/version.py
           test "$(jq -r .version server.json)" = "$v"
           test "$(jq -r '.packages[0].version' server.json)" = "$v"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
       - run: pip install -e ".[dev]" build
       - run: pytest -q
       - run: python -m build

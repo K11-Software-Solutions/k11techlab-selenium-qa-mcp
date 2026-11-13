@@ -104,23 +104,24 @@ AUTO_SCORE = 0.55
 AUTO_MARGIN = 0.1
 
 
-def heal(driver, loc: Loc | None, original: str, baseline: dict[str, str] | None = None) -> dict[str, Any]:
+def heal(driver, loc: Loc | None, original: str, baseline: dict[str, str] | None = None,
+         lang: str = "python") -> dict[str, Any]:
     if loc is None:
         return {"status": "unparseable", "original": original,
-                "note": 'Use a single Selenium locator such as (By.ID, "login") or (By.XPATH, "//button[...]").'}
+                "note": 'Use a single Selenium locator such as (By.ID, "login"), By.id("login") or @FindBy(id = "login").'}
     matches = count_matches(driver, loc)
     if matches == 1:
-        return {"status": "healthy", "original": render(loc), "matches": 1}
+        return {"status": "healthy", "original": render(loc, lang), "matches": 1}
 
     ref = baseline or implied_fingerprint(loc)
     ranked = rank(ref, fingerprint_page(driver, 400), 3)
     cands = []
     for el, sc, reasons in ranked:
-        uniq = unique_locators(driver, el)
+        uniq = unique_locators(driver, el, lang)
         cands.append({"locator": uniq[0] if uniq else None, "score": round(sc, 2), "reasons": reasons})
     base: dict[str, Any] = {
         "status": "needs_review",
-        "original": render(loc),
+        "original": render(loc, lang),
         "matches": matches,
         "candidates": cands,
         "referenceSource": "baseline" if baseline else "implied",

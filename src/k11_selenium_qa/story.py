@@ -109,6 +109,92 @@ def scaffold_test(story: dict[str, Any], url: str | None = None) -> str:
     return "\n".join(L)
 
 
+def _jlit(s: str) -> str:
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _camel(s: str, upper: bool = False) -> str:
+    words = re.findall(r"[A-Za-z0-9]+", s)
+    name = "".join(w[:1].upper() + w[1:].lower() for w in words)[:60] or "Scenario"
+    if name[0].isdigit():
+        name = "S" + name
+    return name if upper else name[:1].lower() + name[1:]
+
+
+def scaffold_java(story: dict[str, Any], url: str | None = None, package: str | None = None,
+                  framework: str = "junit5", class_name: str | None = None) -> str:
+    """JUnit 5 or TestNG skeleton: one test method per scenario, a comment per step, TODOs to fill."""
+    cls = class_name or (_camel(story["title"], upper=True) + "Test")
+    testng = framework == "testng"
+    L = [f"package {package};", ""] if package else []
+    L += [
+        "import java.time.Duration;",
+        "",
+        "import org.openqa.selenium.By;",
+        "import org.openqa.selenium.WebDriver;",
+        "import org.openqa.selenium.chrome.ChromeDriver;",
+        "import org.openqa.selenium.chrome.ChromeOptions;",
+        "import org.openqa.selenium.support.ui.ExpectedConditions;",
+        "import org.openqa.selenium.support.ui.WebDriverWait;",
+    ]
+    if testng:
+        L += ["import org.testng.annotations.AfterMethod;", "import org.testng.annotations.BeforeMethod;",
+              "import org.testng.annotations.Test;", "", "import static org.testng.Assert.*;"]
+    else:
+        L += ["import org.junit.jupiter.api.AfterEach;", "import org.junit.jupiter.api.BeforeEach;",
+              "import org.junit.jupiter.api.DisplayName;", "import org.junit.jupiter.api.Test;", "",
+              "import static org.junit.jupiter.api.Assertions.*;"]
+    L.append("")
+    if story.get("role") or story.get("goal"):
+        who = f"a {story['role']}" if story.get("role") else "a user"
+        so = f" so that {story['benefit']}" if story.get("benefit") else ""
+        L.append(f"/** As {who}, I want {story.get('goal', '…')}{so}. */")
+    L.append(f"{'public ' if testng else ''}class {cls} {{")
+    if url:
+        L.append(f"    private static final String START_URL = {_jlit(url)};")
+    L += [
+        "    private WebDriver driver;",
+        "    private WebDriverWait wait;",
+        "",
+        f"    @{'BeforeMethod' if testng else 'BeforeEach'}",
+        f"    {'public ' if testng else ''}void setUp() {{",
+        "        ChromeOptions options = new ChromeOptions();",
+        "        options.addArguments(\"--headless=new\", \"--window-size=1280,900\");",
+        "        driver = new ChromeDriver(options);",
+        "        wait = new WebDriverWait(driver, Duration.ofSeconds(10));",
+        "    }",
+        "",
+        f"    @{'AfterMethod' if testng else 'AfterEach'}",
+        f"    {'public ' if testng else ''}void tearDown() {{",
+        "        if (driver != null) driver.quit();",
+        "    }",
+    ]
+    seen: set[str] = set()
+    for sc in story["scenarios"]:
+        name = _camel(sc["name"])
+        while name in seen:
+            name += "2"
+        seen.add(name)
+        L.append("")
+        if testng:
+            L.append(f"    @Test(description = {_jlit(sc['name'])})")
+        else:
+            L += ["    @Test", f"    @DisplayName({_jlit(sc['name'])})"]
+        L.append(f"    {'public ' if testng else ''}void {name}() {{")
+        if url:
+            L.append("        driver.get(START_URL);")
+        for st in sc["steps"]:
+            L.append(f"        // {st['keyword']} {st['text']}")
+            if st["keyword"] in ("Then", "Check"):
+                L.append("        // TODO: assert with an explicit wait, e.g. "
+                         "assertEquals(\"...\", wait.until(ExpectedConditions.visibilityOfElementLocated(By.id(\"...\"))).getText());")
+            else:
+                L.append("        // TODO: action using a verified locator from explore_page")
+        L.append("    }")
+    L += ["}", ""]
+    return "\n".join(L)
+
+
 CONFTEST = '''import os
 
 import pytest

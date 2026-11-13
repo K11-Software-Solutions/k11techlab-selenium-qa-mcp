@@ -1,7 +1,7 @@
 {
   "name": "selenium-qa",
   "version": "0.1.0",
-  "description": "Turn user stories into verified Selenium + pytest tests and heal broken locators with an audit trail. MCP tools for page exploration, guarded test writing, structured test runs and self-healing locators.",
+  "description": "Turn user stories into verified Selenium tests (pytest, JUnit 5 or TestNG) and heal broken locators with an audit trail. MCP tools for page exploration, guarded test writing, structured test runs and self-healing locators, including Page Objects and @FindBy.",
   "author": {
     "name": "Kavita A. Jadhav",
     "url": "https://k11softwaresolutions.com"
@@ -9,5 +9,16 @@
   "homepage": "https://github.com/K11-Software-Solutions/k11techlab-selenium-qa-mcp",
   "repository": "https://github.com/K11-Software-Solutions/k11techlab-selenium-qa-mcp",
   "license": "MIT",
-  "keywords": ["selenium", "pytest", "testing", "qa", "self-healing", "test-automation", "mcp"]
+  "keywords": [
+    "selenium",
+    "pytest",
+    "java",
+    "junit",
+    "testng",
+    "testing",
+    "qa",
+    "self-healing",
+    "test-automation",
+    "mcp"
+  ]
 }

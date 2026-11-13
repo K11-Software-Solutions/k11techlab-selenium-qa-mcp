@@ -18,7 +18,8 @@ from .runner import run_tests as _run_tests
 from .session import MAX_STEPS, capture_storage_state
 from .snapshot import explore, fingerprint_of
 from .store import BaselineStore
-from .story import CONFTEST, parse_story, scaffold_test
+from .project import java_framework, language
+from .story import CONFTEST, parse_story, scaffold_java, scaffold_test
 from .version import VERSION
 
 
@@ -28,7 +29,7 @@ def project_root() -> Path:
 
 class Step(BaseModel):
     action: Literal["goto", "click", "fill", "press", "select", "check", "uncheck", "wait_for"]
-    locator: Optional[str] = Field(None, description='Selenium locator, e.g. (By.ID, "email")')
+    locator: Optional[str] = Field(None, description='Selenium locator, e.g. (By.ID, "email") or By.id("email")')
     value: Optional[str] = Field(None, description="For fill/press/select. Use ${ENV:NAME} for secrets.")
     url: Optional[str] = Field(None, description="For goto; absolute or relative to the start URL")
 
@@ -56,17 +57,19 @@ def create_server() -> FastMCP:
     mcp = FastMCP(
         "k11-selenium-qa",
         instructions=(
-            "Selenium QA tools. Get locators from explore_page instead of guessing; they are verified to match "
-            "exactly one element. Write pytest tests with write_test, run them with run_tests, and for locator "
-            "failures call heal_locator. Never put passwords in tool arguments: use ${ENV:NAME}."
+            "Selenium QA tools for Python (pytest) and Java (JUnit 5 / TestNG with Maven or Gradle) projects. "
+            "Get locators from explore_page instead of guessing; they are verified to match exactly one element "
+            "and are written in the project's language. Write tests with write_test, run them with run_tests, and "
+            "for locator failures call heal_locator. Never put passwords in tool arguments: use ${ENV:NAME}."
         ),
     )
 
     @mcp.tool(title="Explore page")
     def explore_page(url: str, only_interactive: bool = True, max_elements: int = 60, session: SessionArg = None) -> dict:
         """Open a URL and list elements with Selenium locators verified to match exactly one element, most stable first."""
-        with open_page(url, project_root(), _sess(session)) as v:
-            els = explore(v.driver, max(1, min(max_elements, 200)), only_interactive)
+        root = project_root()
+        with open_page(url, root, _sess(session)) as v:
+            els = explore(v.driver, max(1, min(max_elements, 200)), only_interactive, language(root))
             return {"url": v.final_url, "title": v.driver.title, "stepsRun": v.steps, "elements": els}
 
     @mcp.tool(title="Check locator")
@@ -75,7 +78,8 @@ def create_server() -> FastMCP:
         loc = parse_locator(locator)
         if not loc:
             raise ValueError(f"Unsupported locator: {locator}. Use e.g. (By.ID, \"login\").")
-        with open_page(url, project_root(), _sess(session)) as v:
+        root = project_root()
+        with open_page(url, root, _sess(session)) as v:
             n = count_matches(v.driver, loc)
             visible = None
             if n:
@@ -84,7 +88,7 @@ def create_server() -> FastMCP:
                 except Exception:  # noqa: BLE001
                     visible = None
             verdict = "unique" if n == 1 else "not_found" if n == 0 else "ambiguous"
-            return {"url": v.final_url, "locator": render(loc), "matches": n, "visible": visible, "verdict": verdict}
+            return {"url": v.final_url, "locator": render(loc, language(root)), "matches": n, "visible": visible, "verdict": verdict}
 
     @mcp.tool(title="Save login state")
     def save_login_state(url: str, steps: list[Step], name: str = "default", success_locator: Optional[str] = None) -> dict:
@@ -109,11 +113,21 @@ def create_server() -> FastMCP:
                     "note": "Pass it as session.storage_state. .qa-mcp/auth/ is in .gitignore; do not commit it."}
 
     @mcp.tool(title="Parse user story")
-    def parse_user_story(story: str, url: Optional[str] = None) -> dict:
-        """Turn a user story, Gherkin scenarios or acceptance criteria into scenarios and a pytest + Selenium skeleton."""
+    def parse_user_story(story: str, url: Optional[str] = None, package: Optional[str] = None,
+                         class_name: Optional[str] = None) -> dict:
+        """Turn a user story, Gherkin scenarios or acceptance criteria into scenarios and a test skeleton:
+        pytest for Python projects, JUnit 5 or TestNG for Java projects (package/class_name apply to Java)."""
         parsed = parse_story(story)
         root = project_root()
-        out = {**parsed, "skeleton": scaffold_test(parsed, url)}
+        if language(root) == "java":
+            if package and not re.fullmatch(r"[a-z_]\w*(\.[a-z_]\w*)*", package):
+                raise ValueError("package must look like com.example.tests")
+            if class_name and not re.fullmatch(r"[A-Z]\w*", class_name):
+                raise ValueError("class_name must be a Java class name")
+            fw = java_framework(root)
+            return {**parsed, "language": "java", "framework": fw,
+                    "skeleton": scaffold_java(parsed, url, package, fw, class_name)}
+        out = {**parsed, "language": "python", "skeleton": scaffold_test(parsed, url)}
         if not (root / "tests" / "conftest.py").is_file() and not (root / "conftest.py").is_file():
             out["conftest"] = CONFTEST
             out["note"] = "No conftest.py found: write this one to tests/conftest.py to provide the driver fixture."
@@ -121,15 +135,21 @@ def create_server() -> FastMCP:
 
     @mcp.tool(title="Write test")
     def write_test(path: str, code: str, overwrite: bool = False) -> dict:
-        """Write a pytest file into tests/ (test_*.py, *_test.py or conftest.py). Refuses other paths; won't overwrite unless asked."""
+        """Write a test file. Python: into tests/ as test_*.py, *_test.py or conftest.py.
+        Java: into src/test/java/ as a .java file (tests and Page Objects).
+        Refuses other paths; won't overwrite unless asked."""
         root = project_root()
-        tests_dir = (root / "tests").resolve()
+        java = language(root) == "java"
+        base = "src/test/java" if java else "tests"
+        tests_dir = (root / base).resolve()
         rel = path.replace("\\", "/")
-        rel = rel[len("tests/"):] if rel.startswith("tests/") else rel
+        rel = rel[len(base) + 1:] if rel.startswith(base + "/") else rel
         target = (tests_dir / rel).resolve()
         if tests_dir not in target.parents:
-            raise ValueError("Tests can only be written inside tests/")
-        if not re.fullmatch(r"(test_[\w-]+|[\w-]+_test|conftest)\.py", target.name):
+            raise ValueError(f"Tests can only be written inside {base}/")
+        if java and not re.fullmatch(r"[A-Z]\w*\.java", target.name):
+            raise ValueError("File name must be a Java class name ending in .java")
+        if not java and not re.fullmatch(r"(test_[\w-]+|[\w-]+_test|conftest)\.py", target.name):
             raise ValueError("File name must be test_*.py, *_test.py or conftest.py")
         if target.exists() and not overwrite:
             raise ValueError(f"{target.relative_to(root).as_posix()} exists. Pass overwrite=true to replace it.")
@@ -139,21 +159,31 @@ def create_server() -> FastMCP:
 
     @mcp.tool(title="Run tests")
     def run_tests(target: Optional[str] = None, keyword: Optional[str] = None, timeout_s: int = 600) -> dict:
-        """Run the project's pytest suite (optionally one file/node id, or -k keyword).
-        Failing tests include the exact Selenium locator they were waiting for and the page they were on."""
+        """Run the project's tests. Python: pytest (target = file or node id; keyword = -k).
+        Java: Maven or Gradle (target = Class, pkg.Class or Class#method).
+        Failing tests include the exact Selenium locator they were waiting for and where it is used."""
         root = project_root()
+        lang = language(root)
         targets = None
         if target:
-            full = (root / target.split("::")[0]).resolve()
-            if root not in full.parents and full != root:
-                raise ValueError("target must be inside the project")
+            if lang == "python":
+                full = (root / target.split("::")[0]).resolve()
+                if root not in full.parents and full != root:
+                    raise ValueError("target must be inside the project")
             targets = [target]
-        return _run_tests(root, targets, keyword, max(10, min(timeout_s, 3600)))
+        result = _run_tests(root, targets, keyword if lang == "python" else None, max(10, min(timeout_s, 3600)))
+        if lang == "java":
+            for t in result.get("tests", []):
+                loc = parse_locator(t.get("failingLocator") or "")
+                if loc:
+                    t["failingLocator"] = render(loc, "java")
+        return result
 
     @mcp.tool(title="Capture baseline")
     def capture_baseline(url: str, locators: list[str], session: SessionArg = None) -> dict:
         """While tests pass, fingerprint the element each locator matches (.qa-mcp/baselines.json) so healing can find it later."""
         root = project_root()
+        lang = language(root)
         captured, skipped, entries = [], [], {}
         with open_page(url, root, _sess(session)) as v:
             for raw in locators:
@@ -163,12 +193,12 @@ def create_server() -> FastMCP:
                     continue
                 els = v.driver.find_elements(loc.by, loc.value) if count_matches(v.driver, loc) else []
                 if len(els) != 1:
-                    skipped.append({"locator": render(loc), "reason": f"matches {len(els)} elements, need exactly 1"})
+                    skipped.append({"locator": render(loc, lang), "reason": f"matches {len(els)} elements, need exactly 1"})
                     continue
                 fp = fingerprint_of(v.driver, els[0])
                 if fp:
-                    entries[render(loc)] = fp
-                    captured.append(render(loc))
+                    entries[render(loc)] = fp  # canonical key, same for Python and Java projects
+                    captured.append(render(loc, lang))
             if entries:
                 BaselineStore(root).put(v.final_url, entries)
             return {"page": v.final_url, "captured": captured, "skipped": skipped,
@@ -182,19 +212,22 @@ def create_server() -> FastMCP:
         root = project_root()
         with open_page(url, root, _sess(session)) as v:
             baseline = BaselineStore(root).get(v.final_url, render(loc)) if loc else None
-            result = heal(v.driver, loc, locator, baseline)
+            result = heal(v.driver, loc, locator, baseline, language(root))
             return {"page": v.final_url, **result}
 
     @mcp.prompt(title="User story to Selenium test")
     def story_to_selenium(story: str, url: str) -> str:
-        """Guided workflow from a user story to a passing pytest + Selenium test."""
+        """Guided workflow from a user story to a passing Selenium test (pytest, JUnit 5 or TestNG)."""
         return (
-            f"Write a pytest + Selenium test for this user story, starting at {url}.\n\n{story}\n\n"
-            "1. Call parse_user_story for scenarios and a skeleton (write the conftest it returns if there is none).\n"
+            f"Write a Selenium test for this user story, starting at {url}.\n\n{story}\n\n"
+            "1. Call parse_user_story for scenarios and a skeleton in the project's language "
+            "(for Python, write the conftest it returns if there is none).\n"
             "2. Call explore_page on each page the flow reaches; use only the verified locators it returns. "
             "For pages behind a login, call save_login_state once (credentials as ${ENV:NAME}) and pass session.storage_state.\n"
-            "3. Fill every TODO using explicit waits (WebDriverWait + expected_conditions), no time.sleep.\n"
-            "4. Save with write_test as tests/test_<feature>.py, then run_tests. Heal locator failures with heal_locator; "
+            "3. Fill every TODO using explicit waits (WebDriverWait + expected conditions), no sleeps. "
+            "Follow the project's Page Object conventions if it has them.\n"
+            "4. Save with write_test (Python: tests/test_<feature>.py; Java: src/test/java/<package>/<Feature>Test.java), "
+            "then run_tests. Heal locator failures with heal_locator; "
             "if the app itself is wrong, report the bug instead of weakening the assertion.\n"
             "5. When it passes, call capture_baseline with the URL and the locators the test uses."
         )

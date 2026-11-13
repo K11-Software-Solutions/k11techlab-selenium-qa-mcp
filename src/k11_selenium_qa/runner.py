@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from .locators import Loc, render
+from .project import language
 
 PLUGIN_DIR = Path(__file__).parent / "_pytest_plugin"
 
@@ -34,6 +35,10 @@ def project_python(root: Path) -> str:
 def run_tests(root: Path, targets: list[str] | None = None, keyword: str | None = None,
               timeout_s: int = 600, extra_env: dict[str, str] | None = None) -> dict[str, Any]:
     root = Path(root).resolve()
+    if language(root) == "java":
+        from .javarunner import run_java_tests
+
+        return run_java_tests(root, targets, timeout_s, extra_env)
     with tempfile.TemporaryDirectory(prefix="k11qa-") as tmp:
         results_file = Path(tmp) / "results.json"
         env = {**os.environ, **(extra_env or {})}

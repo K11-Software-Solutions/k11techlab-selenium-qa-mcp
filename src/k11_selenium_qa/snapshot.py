@@ -144,18 +144,18 @@ def candidates(fp: Fingerprint) -> list[Loc]:
     return [loc for _, loc in sorted(out, key=lambda x: x[0])]
 
 
-def unique_locators(driver, fp: Fingerprint) -> list[str]:
+def unique_locators(driver, fp: Fingerprint, lang: str = "python") -> list[str]:
     """Rendered candidates that match exactly one element on the live page."""
-    return [render(loc) for loc in candidates(fp) if count_matches(driver, loc) == 1]
+    return [render(loc, lang) for loc in candidates(fp) if count_matches(driver, loc) == 1]
 
 
-def explore(driver, max_elements: int = 80, only_interactive: bool = False) -> list[dict[str, Any]]:
+def explore(driver, max_elements: int = 80, only_interactive: bool = False, lang: str = "python") -> list[dict[str, Any]]:
     fps = [f for f in fingerprint_page(driver, max_elements * 2) if f.get("visible")]
     if only_interactive:
         fps = [f for f in fps if f.get("role") in INTERACTIVE or f.get("tag") in ("input", "select", "textarea")]
     out = []
     for fp in fps[:max_elements]:
-        uniq = unique_locators(driver, fp)
+        uniq = unique_locators(driver, fp, lang)
         el = {k: v for k, v in fp.items() if k not in ("probe", "testIdAttr", "ariaLabel", "visible")}
         el["best"] = uniq[0] if uniq else None
         el["alternatives"] = uniq[1:]

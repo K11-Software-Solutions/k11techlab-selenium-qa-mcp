@@ -31,14 +31,20 @@ class Loc:
     value: str
 
     def normalized(self) -> "Loc":
-        """Map Selenium's internal CSS forms back to the strategy the test used."""
+        """Map the CSS forms Selenium sends for By.id / By.name / By.className back to
+        that strategy (Python sends [id="x"], Java sends #x), so comparisons line up."""
         if self.by == "css selector":
-            m = re.fullmatch(r'\[id="((?:[^"\\]|\\.)*)"\]', self.value)
+            v = self.value.strip()
+            for attr, by in (("id", "id"), ("name", "name")):
+                m = re.fullmatch(rf"""\*?\[{attr}\s*=\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)')\]""", v)
+                if m:
+                    return Loc(by, _css_unescape(m.group(1) if m.group(1) is not None else m.group(2)))
+            m = re.fullmatch(r"#((?:[A-Za-z_]|\\.)(?:[\w-]|\\.)*)", v)
             if m:
                 return Loc("id", _css_unescape(m.group(1)))
-            m = re.fullmatch(r'\[name="((?:[^"\\]|\\.)*)"\]', self.value)
+            m = re.fullmatch(r"\.((?:[A-Za-z_]|\\.)(?:[\w-]|\\.)*)", v)
             if m:
-                return Loc("name", _css_unescape(m.group(1)))
+                return Loc("class name", _css_unescape(m.group(1)))
         return self
 
 
@@ -53,8 +59,94 @@ def pyq(s: str) -> str:
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def render(loc: Loc) -> str:
+def render(loc: Loc, lang: str = "python") -> str:
+    """Locator as source code in the project's language. Python form is the canonical
+    key used in baselines.json."""
+    if lang == "java":
+        return f"By.{JAVA_METHOD[loc.by]}({javaq(loc.value)})"
     return f"(By.{BY_CONST[loc.by]}, {pyq(loc.value)})"
+
+
+# ---- Java -------------------------------------------------------------------
+
+JAVA_METHOD = {"id": "id", "name": "name", "css selector": "cssSelector", "xpath": "xpath",
+               "link text": "linkText", "partial link text": "partialLinkText",
+               "class name": "className", "tag name": "tagName"}
+JAVA_BY = {v: k for k, v in JAVA_METHOD.items()}
+# @FindBy(<key> = "...") and How.<CONST>
+FINDBY_KEY = {"id": "id", "name": "name", "css": "css selector", "xpath": "xpath", "linkText": "link text",
+              "partialLinkText": "partial link text", "className": "class name", "tagName": "tag name"}
+FINDBY_KEY_REV = {v: k for k, v in FINDBY_KEY.items()}
+HOW = {"ID": "id", "NAME": "name", "CSS": "css selector", "XPATH": "xpath", "LINK_TEXT": "link text",
+       "PARTIAL_LINK_TEXT": "partial link text", "CLASS_NAME": "class name", "TAG_NAME": "tag name",
+       "ID_OR_NAME": "id"}
+
+JSTR = r'"(?:[^"\\\n]|\\.)*"'
+_JESC = {"n": "\n", "t": "\t", "r": "\r", "b": "\b", "f": "\f", "0": "\0", "s": " ", '"': '"', "'": "'", "\\": "\\"}
+
+
+def java_unescape(lit: str) -> str | None:
+    """Value of a Java string literal (with quotes). None if malformed."""
+    if len(lit) < 2 or lit[0] != '"' or lit[-1] != '"':
+        return None
+    body, out, i = lit[1:-1], [], 0
+    while i < len(body):
+        c = body[i]
+        if c == "\\" and i + 1 < len(body):
+            n = body[i + 1]
+            if n == "u":
+                j = i + 1
+                while j < len(body) and body[j] == "u":
+                    j += 1
+                try:
+                    out.append(chr(int(body[j:j + 4], 16)))
+                except ValueError:
+                    return None
+                i = j + 4
+                continue
+            out.append(_JESC.get(n, n))
+            i += 2
+            continue
+        out.append(c)
+        i += 1
+    return "".join(out)
+
+
+def javaq(s: str) -> str:
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n") + '"'
+
+
+def parse_findby_args(args: str) -> Loc | None:
+    """Arguments of @FindBy(...): id = "x" | css = "x" | how = How.ID, using = "x"."""
+    pairs = dict(re.findall(rf"(\w+)\s*=\s*((?:[\w.]+)|{JSTR})", args))
+    if "how" in pairs and "using" in pairs:
+        how = pairs["how"].split(".")[-1]
+        value = java_unescape(pairs["using"])
+        return Loc(HOW[how], value).normalized() if how in HOW and value else None
+    for key, by in FINDBY_KEY.items():
+        if key in pairs and pairs[key].startswith('"'):
+            value = java_unescape(pairs[key])
+            return Loc(by, value).normalized() if value else None
+    return None
+
+
+_JAVA_CALL = re.compile(rf"^(?:[\w.]*\(\s*)*By\s*\.\s*(\w+)\s*\(\s*({JSTR})\s*\)[\s);]*$", re.S)
+_JAVA_TOSTRING = re.compile(r"^By\.(\w+):\s?(.+)$", re.S)
+_FINDBY = re.compile(r"^@?FindBy\s*\((.*)\)\s*$", re.S)
+
+
+def parse_java(s: str) -> Loc | None:
+    m = _JAVA_CALL.match(s)
+    if m and m.group(1) in JAVA_BY:
+        value = java_unescape(m.group(2))
+        return Loc(JAVA_BY[m.group(1)], value).normalized() if value else None
+    m = _FINDBY.match(s)
+    if m:
+        return parse_findby_args(m.group(1))
+    m = _JAVA_TOSTRING.match(s)  # By.toString(), as in TimeoutException messages
+    if m and m.group(1) in JAVA_BY and m.group(2).strip():
+        return Loc(JAVA_BY[m.group(1)], m.group(2).strip()).normalized()
+    return None
 
 
 _STR = r"""(?:[rRuU]?(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'))"""
@@ -72,6 +164,8 @@ def parse_locator(text: str) -> Loc | None:
     m = re.fullmatch(r'\{\s*"method"\s*:\s*"([a-z ]+)"\s*,\s*"selector"\s*:\s*"((?:[^"\\]|\\.)*)"\s*\}', s)
     if m:  # WebDriver error payload
         return Loc(m.group(1), _css_unescape(m.group(2))).normalized() if m.group(1) in BY_CONST else None
+    if (java := parse_java(s)) is not None:
+        return java
     m = _PATTERNS[0].match(s)
     if m and m.group(1) in BY:
         return _mk(BY[m.group(1)], m.group(2))

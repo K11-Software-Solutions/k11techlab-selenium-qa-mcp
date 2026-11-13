@@ -5,13 +5,13 @@ build-backend = "hatchling.build"
 [project]
 name = "k11-selenium-qa-mcp"
 version = "0.1.0"
-description = "MCP server and Claude Code plugin for Selenium QA: verified locators, user story to pytest, and self-healing locators with an audit trail."
+description = "MCP server and Claude Code plugin for Selenium QA in Python and Java: verified locators, user story to tests, and self-healing locators with an audit trail."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "K11 Software Solutions" }]
 requires-python = ">=3.10"
-keywords = ["mcp", "selenium", "self-healing", "test-automation", "pytest", "claude", "qa"]
+keywords = ["mcp", "selenium", "self-healing", "test-automation", "pytest", "junit", "testng", "java", "claude", "qa"]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Framework :: Pytest",

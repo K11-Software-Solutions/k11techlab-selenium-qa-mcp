@@ -34,6 +34,11 @@ class BaselineStore:
         entry = self.load().get(page_key(url), {}).get(locator)
         return entry["fingerprint"] if entry else None
 
+    def pages_for(self, locator: str) -> list[str]:
+        """Pages whose baseline has this locator (canonical form), most recently captured first."""
+        hits = [(e[locator].get("capturedAt", ""), page) for page, e in self.load().items() if locator in e]
+        return [page for _, page in sorted(hits, reverse=True)]
+
     def put(self, url: str, entries: dict[str, dict]) -> None:
         data = self.load()
         page = data.setdefault(page_key(url), {})

@@ -19,6 +19,7 @@ from .browser import open_page
 from .heal import heal
 from .locators import parse_locator, render
 from .rewrite import Replacement, locate_in_project, replace_locator
+from .project import language
 from .runner import run_tests
 from .store import BaselineStore
 from .version import VERSION
@@ -79,6 +80,7 @@ def heal_ci(root: Path, apply: bool, min_confidence: float | None = None, config
     cfg = load_config(root, config_path)
     min_conf = min_confidence if min_confidence is not None else cfg.get("minConfidence", DEFAULT_MIN_CONFIDENCE)
     store = BaselineStore(root)
+    lang = language(root)
 
     log("Running tests…")
     run = run_tests(root, extra_env=extra_env)
@@ -97,24 +99,32 @@ def heal_ci(root: Path, apply: bool, min_confidence: float | None = None, config
             other.append({"test": t["test"], "file": t["file"], "error": t.get("error")})
             continue
         broken = parse_locator(t["failingLocator"])
-        item = HealItem(test=t["test"], file=t["file"], locator=t["failingLocator"], line=t.get("locatorLine") or t.get("errorLine"))
+        shown = render(broken, lang) if broken else t["failingLocator"]
+        item = HealItem(test=t["test"], file=t.get("locatorFile") or t["file"], locator=shown,
+                        line=t.get("locatorLine") or t.get("errorLine"))
         items.append(item)
         if broken is None:
             item.note = "Locator form not supported for healing"
             continue
+        # Which page was the test on? Config target, then what the run recorded (Python),
+        # then the page this locator's baseline was captured on (works for Java too).
         target = _target_for(cfg, t["file"]) or {}
         raw_url = target.get("url") or t.get("page")
         if not raw_url or raw_url.startswith(("data:", "about:")):
-            item.note = "Could not tell which page the test was on. Add a target with a url in .qa-mcp/heal.config.json."
+            pages = store.pages_for(render(broken))
+            raw_url = pages[0] if pages else None
+        if not raw_url:
+            item.note = ("Could not tell which page the test was on. Capture a baseline for this locator, "
+                         "or add a target with a url in .qa-mcp/heal.config.json.")
             continue
         url = urljoin(cfg.get("baseUrl") or raw_url, raw_url)
         session = target.get("session") or cfg.get("session")
-        log(f"Healing {render(broken)} on {url}")
+        log(f"Healing {shown} on {url}")
         try:
             with open_page(url, root, session) as v:
                 item.page = v.final_url
                 baseline = store.get(v.final_url, render(broken))
-                result = heal(v.driver, broken, render(broken), baseline)
+                result = heal(v.driver, broken, shown, baseline, lang)
         except Exception as e:  # noqa: BLE001
             item.note = f"Could not open the page: {str(e).splitlines()[0]}"
             continue
@@ -136,7 +146,8 @@ def heal_ci(root: Path, apply: bool, min_confidence: float | None = None, config
             item.note = f"Confidence below the {min_conf} threshold for automatic changes." if status == "healed" else result.get("note")
             continue
         healed = parse_locator(item.suggestion)
-        files = locate_in_project(root, broken, prefer=Path(t["filePath"]))
+        prefer = root / t["locatorFile"] if t.get("locatorFile") else (Path(t["filePath"]) if t.get("filePath") else None)
+        files = locate_in_project(root, broken, prefer=prefer)
         reps: list[Replacement] = []
         new_code: dict[Path, str] = {}
         for f in files:
@@ -183,7 +194,7 @@ def heal_ci(root: Path, apply: bool, min_confidence: float | None = None, config
                 code = orig
                 for it in kept:
                     if f in item_files.get(id(it), []):
-                        code, _ = replace_locator(code, parse_locator(it.locator), parse_locator(it.suggestion))
+                        code, _ = replace_locator(code, parse_locator(it.locator), parse_locator(it.suggestion), f.name)
                 _write(f, code)
                 current[f] = code
             if not applied:

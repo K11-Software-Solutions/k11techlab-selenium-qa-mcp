@@ -7,3 +7,5 @@ build/
 .pytest_cache/
 .tmp*
 .qa-mcp/auth/
+target/
+.gradle/

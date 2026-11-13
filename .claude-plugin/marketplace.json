@@ -8,7 +8,7 @@
     {
       "name": "selenium-qa",
       "source": "./",
-      "description": "User stories to verified Selenium + pytest tests, structured test runs and self-healing locators with an audit trail."
+      "description": "User stories to verified Selenium tests in Python or Java, and self-healing locators with an audit trail."
     }
   ]
 }
