@@ -24,7 +24,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
-      - run: pip install git+https://github.com/K11-Software-Solutions/k11techlab-selenium-qa-mcp
+      - run: pip install k11-selenium-qa-mcp
 
       # Point the tests at the environment under test (or start the app here).
       - name: Heal broken locators

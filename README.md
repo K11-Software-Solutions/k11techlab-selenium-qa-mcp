@@ -12,7 +12,7 @@ Most Selenium suites break the same way: someone renames an id, and dozens of `f
 - **Self-healing with evidence.** When the UI changes, it finds the element the test meant and suggests a verified replacement, with a confidence score, the reasons and the runner-up.
 - **Healing in CI.** `heal-ci` applies only confident fixes, edits your tests *and Page Objects* (including `@FindBy` annotations), re-runs them, reverts anything that still fails, and opens a pull request whose description is the audit report.
 
-Works with **Claude Code** (as a plugin with `/story-to-test` and `/heal-tests`), **Claude Desktop**, and any MCP client. The server runs on Python 3.10+; your tests can be **Python (pytest)** or **Java (JUnit 5 / TestNG, Maven or Gradle)**, Selenium 4.
+Works with **Claude Code** (as a plugin with `/story-to-test` and `/heal-tests`), **Claude Desktop**, and any MCP client. On [PyPI](https://pypi.org/project/k11-selenium-qa-mcp/) and in the official [MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.K11-Software-Solutions/selenium-qa`. The server runs on Python 3.10+; your tests can be **Python (pytest)** or **Java (JUnit 5 / TestNG, Maven or Gradle)**, Selenium 4.
 
 ---
 
@@ -136,10 +136,10 @@ Adds the MCP tools plus `/story-to-test` and `/heal-tests` (needs [uv](https://d
 From your test project's folder:
 
 ```bash
-claude mcp add selenium-qa -- uvx --from git+https://github.com/K11-Software-Solutions/k11techlab-selenium-qa-mcp k11-selenium-qa-mcp
+claude mcp add selenium-qa -- uvx k11-selenium-qa-mcp
 ```
 
-Or with pip: `pip install git+https://github.com/K11-Software-Solutions/k11techlab-selenium-qa-mcp`, then `claude mcp add selenium-qa -- k11-selenium-qa-mcp`.
+Or with pip: `pip install k11-selenium-qa-mcp`, then `claude mcp add selenium-qa -- k11-selenium-qa-mcp`.
 
 ### Claude Desktop and other MCP clients
 
@@ -148,7 +148,7 @@ Or with pip: `pip install git+https://github.com/K11-Software-Solutions/k11techl
   "mcpServers": {
     "selenium-qa": {
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/K11-Software-Solutions/k11techlab-selenium-qa-mcp", "k11-selenium-qa-mcp"],
+      "args": ["k11-selenium-qa-mcp"],
       "env": { "QA_MCP_ROOT": "/path/to/your/tests/project" }
     }
   }
@@ -193,7 +193,6 @@ pytest        # unit, real-browser, MCP protocol, Java and heal-ci tests (41; th
 - Recording the page URL for Java runs (today it comes from baselines or the config)
 - Healing for chained `find_element` calls and `find_elements(...)[n]`
 - Visual (screenshot) fingerprints as an extra signal
-- PyPI release (`uvx k11-selenium-qa-mcp`)
 
 ---
 
