@@ -1,0 +1,34 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.K11-Software-Solutions/selenium-qa",
+  "title": "k11 Selenium QA",
+  "description": "User stories to verified Selenium + pytest tests, and self-healing locators with an audit trail.",
+  "websiteUrl": "https://github.com/K11-Software-Solutions/k11techlab-selenium-qa-mcp",
+  "repository": {
+    "url": "https://github.com/K11-Software-Solutions/k11techlab-selenium-qa-mcp",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "k11-selenium-qa-mcp",
+      "version": "0.1.0",
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        {
+          "name": "QA_MCP_ROOT",
+          "description": "Folder of the test project (defaults to the current directory)",
+          "isRequired": false,
+          "format": "string"
+        },
+        {
+          "name": "QA_MCP_BROWSER",
+          "description": "chrome (default), edge or firefox",
+          "isRequired": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

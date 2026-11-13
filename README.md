@@ -1,5 +1,7 @@
 # k11 Selenium QA — MCP server & Claude Code plugin
 
+<!-- mcp-name: io.github.K11-Software-Solutions/selenium-qa -->
+
 **Self-healing Selenium tests with an audit trail. No vendor lock-in, no rewrite to Playwright.**
 
 Most Selenium suites break the same way: someone renames an id, and dozens of `find_element(By.ID, ...)` calls fail overnight. AI assistants can write Selenium tests, but they guess locators, and healing tools usually patch things at runtime without telling you what changed. This MCP server gives the assistant facts instead of guesses, and gives your team a reviewable record of every fix:
