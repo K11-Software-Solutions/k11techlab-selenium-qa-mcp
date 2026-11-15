@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+type: software
+title: "k11 Selenium QA MCP Server"
+abstract: "MCP server and Claude Code plugin for Selenium in Python (pytest) and Java (JUnit 5 and TestNG): verified locators, user stories to tests, and self-healing locators fixed where they live in Page Objects and @FindBy annotations, with verified re-runs and an audit trail."
+authors:
+  - family-names: "Jadhav"
+    given-names: "Kavita"
+    orcid: "https://orcid.org/0009-0009-8507-4976"
+    affiliation: "K11 Software Solutions"
+repository-code: "https://github.com/K11-Software-Solutions/k11techlab-selenium-qa-mcp"
+url: "https://github.com/K11-Software-Solutions/k11techlab-selenium-qa-mcp"
+license: MIT
+keywords:
+  - "selenium"
+  - "test automation"
+  - "self-healing tests"
+  - "java"
+  - "python"
+  - "model context protocol"
+  - "MCP"
+  - "quality engineering"
+references:
+  - type: article
+    title: "Autonomous CI/CD Quality Assurance Using LangGraph Multi-Agent Orchestration and Risk-Proportionate Human-in-the-Loop Control"
+    authors:
+      - family-names: "Jadhav"
+        given-names: "Kavita"
+        orcid: "https://orcid.org/0009-0009-8507-4976"
+    journal: "International Journal of Engineering and Computer Science"
+    year: 2026
+    doi: "10.18535/ijecs/v15i06.5563"
