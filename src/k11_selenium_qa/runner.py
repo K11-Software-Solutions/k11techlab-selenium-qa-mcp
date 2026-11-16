@@ -45,6 +45,7 @@ def run_tests(root: Path, targets: list[str] | None = None, keyword: str | None 
         env["K11_QA_RESULTS"] = str(results_file)
         env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(PLUGIN_DIR), env.get("PYTHONPATH")]))
         env.setdefault("PYTHONIOENCODING", "utf-8")
+        env["PYTHONDONTWRITEBYTECODE"] = "1"  # never let a stale .pyc hide a source edit between runs
         args = [project_python(root), "-m", "pytest", "-p", "k11_qa_pytest_plugin", "-q", "--tb=short",
                 "-p", "no:cacheprovider", "-o", "console_output_style=classic"]
         if keyword:

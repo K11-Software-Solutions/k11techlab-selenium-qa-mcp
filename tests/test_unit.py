@@ -96,3 +96,25 @@ def test_sessions_validate_and_mask(tmp_path, monkeypatch):
         resolve_env("${ENV:NOPE_X}")
     with pytest.raises(ValueError, match="inside the project"):
         resolve_storage_state(tmp_path, "../outside.json")
+
+
+def test_same_length_edit_in_the_same_second_is_not_hidden_by_bytecode(tmp_path):
+    """Regression: a same-size Page Object rewrite within one second used to re-run stale bytecode
+    (Python validates .pyc by size and whole-second mtime) and revert a correct fix."""
+    import os
+
+    from k11_selenium_qa.healci import _write
+
+    page = tmp_path / "account_page.py"
+    page.write_bytes(b'ORDERS = (By.ID, "view-orders")\n')     # LF, as heal-ci writes it
+    cache = tmp_path / "__pycache__"
+    cache.mkdir()
+    stale = cache / "account_page.cpython-311.pyc"
+    stale.write_bytes(b"stale")
+    other = cache / "other.cpython-311.pyc"
+    other.write_bytes(b"keep")
+    st = page.stat()
+    _write(page, page.read_text("utf8").replace("view-orders", "show-orders"))
+    os.utime(page, ns=(st.st_atime_ns, st.st_mtime_ns))     # same size, same mtime: the worst case
+    assert page.stat().st_size == st.st_size
+    assert not stale.exists() and other.exists()

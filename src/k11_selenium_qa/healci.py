@@ -54,6 +54,16 @@ def _read(p: Path) -> str:
 def _write(p: Path, s: str) -> None:
     with open(p, "w", encoding="utf8", newline="") as fh:
         fh.write(s)
+    # Python reuses cached bytecode when a source file's size and mtime (in whole seconds) are unchanged. A
+    # same-length edit within the same second as the last run (fast CI) would re-run the OLD locator and wrongly
+    # revert a good fix, so drop the cache for every file we touch.
+    cache = p.parent / "__pycache__"
+    if p.suffix == ".py" and cache.is_dir():
+        for pyc in cache.glob(f"{p.stem}.*.pyc"):
+            try:
+                pyc.unlink()
+            except OSError:
+                pass
 
 
 def load_config(root: Path, config_path: str | None = None) -> dict[str, Any]:

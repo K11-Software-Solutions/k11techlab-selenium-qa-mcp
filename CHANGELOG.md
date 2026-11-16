@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2 (16 November 2026)
+
+- **Fix:** heal-ci could revert a correct heal. When a locator change kept the Page Object's size (e.g. `"view-orders"` → `"show-orders"`) and was written within the same second as the last test run, Python reused the old bytecode, the re-run used the old locator, and the fix was reverted. Seen on fast CI machines. heal-ci now deletes the bytecode of every file it edits, and tests run with `PYTHONDONTWRITEBYTECODE=1`.
+
 ## 0.2.1 (13 November 2026)
 
 - The server now reports its own version (`0.2.1`) to MCP clients and directories, instead of the MCP SDK's version.
