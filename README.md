@@ -74,6 +74,8 @@ Prompt: **`story_to_selenium`**, a guided workflow from story to passing test.
 
 ## How self-healing works
 
+> All K11 QA tools keep their settings, baselines and reports in `.qa-mcp/`. [What each file is for, and what to commit](https://github.com/K11-Software-Solutions/k11techlab-release-gate-mcp/blob/main/docs/qa-mcp-folder.md).
+
 1. **Baseline.** While tests pass, `capture_baseline` records each element's fingerprint: role, accessible name, test id, id, `name`, type, label, placeholder, classes, text and href.
 2. **Detect.** For pytest, a small plugin notes the last locator Selenium could not find (including inside `WebDriverWait`) and the page the browser was on. For Java, the locator comes from Selenium's own exception text in the JUnit XML reports, and the stack trace shows which Page Object or test asked for it.
 3. **Match.** `heal_locator` scores every visible element on the current page against the fingerprint, with exact matching for stable attributes and fuzzy, synonym-aware matching for text and ids ("Sign in" ≈ "Log in", `btn` ≈ `button`).
