@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Ask before you build:** new `review_user_story` tool. Before tests are generated, it lists the questions a careful tester would ask (missing acceptance criteria, outcomes that can't be asserted, no user role, untestable words, limits without numbers, no failure path, missing preconditions, and, with `context`, terms the context never explains), each with why it matters and the words that raised it.
+- `/story-to-test` and the `story_to_selenium` prompt now start with the review and wait for answers instead of guessing; open questions the user chooses to skip go into the test and the final report.
+- `parse_user_story` returns a short `review` summary, so open questions are visible even when the review is skipped.
+- The rules match k11 Playwright QA 0.4.1 exactly: both projects test against the same cases (`tests/fixtures/review_cases.json`).
+
 ## 0.2.2 (16 November 2026)
 
 - **Fix:** heal-ci could revert a correct heal. When a locator change kept the Page Object's size (e.g. `"view-orders"` → `"show-orders"`) and was written within the same second as the last test run, Python reused the old bytecode, the re-run used the old locator, and the fix was reverted. Seen on fast CI machines. heal-ci now deletes the bytecode of every file it edits, and tests run with `PYTHONDONTWRITEBYTECODE=1`.

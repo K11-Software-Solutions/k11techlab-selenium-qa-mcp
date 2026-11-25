@@ -19,6 +19,7 @@ from .session import MAX_STEPS, capture_storage_state
 from .snapshot import explore, fingerprint_of
 from .store import BaselineStore
 from .project import java_framework, language
+from .clarify import review_story
 from .story import CONFTEST, parse_story, scaffold_java, scaffold_test
 from .version import VERSION
 
@@ -112,12 +113,36 @@ def create_server() -> FastMCP:
                     "cookies": len(state["cookies"]), "localStorageOrigins": len(state["origins"]),
                     "note": "Pass it as session.storage_state. .qa-mcp/auth/ is in .gitignore; do not commit it."}
 
+    @mcp.tool(title="Review user story before testing")
+    def review_user_story(story: str, context: Optional[str] = None) -> dict:
+        """Call this BEFORE parse_user_story. Finds what a careful tester would ask before writing tests: missing
+        acceptance criteria, outcomes that can't be asserted, no user role, untestable words (fast, easy, many),
+        limits without numbers, no failure path, missing preconditions, and (with context) terms the context never
+        explains. Returns questions for a person to answer, each with why it matters and the words that raised it.
+        If ready is false, ask the user these questions and wait; do not guess the answers.
+
+        context: related product docs, glossary or notes; terms the story uses but this never explains become questions."""
+        review = review_story(parse_story(story), story, context)
+        review["next"] = ("No open questions. Continue with parse_user_story." if review["ready"] else
+                          "Ask the user these questions and wait for answers. Add the answers to the story "
+                          "(as acceptance criteria or Given/When/Then), then call review_user_story again.")
+        return review
+
     @mcp.tool(title="Parse user story")
     def parse_user_story(story: str, url: Optional[str] = None, package: Optional[str] = None,
                          class_name: Optional[str] = None) -> dict:
         """Turn a user story, Gherkin scenarios or acceptance criteria into scenarios and a test skeleton:
-        pytest for Python projects, JUnit 5 or TestNG for Java projects (package/class_name apply to Java)."""
+        pytest for Python projects, JUnit 5 or TestNG for Java projects (package/class_name apply to Java).
+        Call review_user_story first; the result includes a short review so open questions are never silently skipped."""
         parsed = parse_story(story)
+        out = _parse_user_story(parsed, url, package, class_name)
+        r = review_story(parsed, story)
+        out["review"] = {"ready": r["ready"], "open_questions": len(r["questions"])}
+        if not r["ready"]:
+            out["review"]["note"] = "This story has open questions; call review_user_story and ask the user before filling in the tests."
+        return out
+
+    def _parse_user_story(parsed: dict, url: Optional[str], package: Optional[str], class_name: Optional[str]) -> dict:
         root = project_root()
         if language(root) == "java":
             if package and not re.fullmatch(r"[a-z_]\w*(\.[a-z_]\w*)*", package):
@@ -220,16 +245,21 @@ def create_server() -> FastMCP:
         """Guided workflow from a user story to a passing Selenium test (pytest, JUnit 5 or TestNG)."""
         return (
             f"Write a Selenium test for this user story, starting at {url}.\n\n{story}\n\n"
-            "1. Call parse_user_story for scenarios and a skeleton in the project's language "
+            "1. Call review_user_story. If ready is false, ask the user its questions and STOP until they answer; "
+            "add the answers to the story and review again. If the user says to go ahead anyway, carry the open "
+            "questions into the test as OPEN QUESTION comments and into the final report; never guess the answers.\n"
+            "2. Call parse_user_story for scenarios and a skeleton in the project's language "
             "(for Python, write the conftest it returns if there is none).\n"
-            "2. Call explore_page on each page the flow reaches; use only the verified locators it returns. "
+            "3. Call explore_page on each page the flow reaches; use only the verified locators it returns. "
             "For pages behind a login, call save_login_state once (credentials as ${ENV:NAME}) and pass session.storage_state.\n"
-            "3. Fill every TODO using explicit waits (WebDriverWait + expected conditions), no sleeps. "
+            "4. Fill every TODO using explicit waits (WebDriverWait + expected conditions), no sleeps. "
             "Follow the project's Page Object conventions if it has them.\n"
-            "4. Save with write_test (Python: tests/test_<feature>.py; Java: src/test/java/<package>/<Feature>Test.java), "
+            "5. Save with write_test (Python: tests/test_<feature>.py; Java: src/test/java/<package>/<Feature>Test.java), "
             "then run_tests. Heal locator failures with heal_locator; "
             "if the app itself is wrong, report the bug instead of weakening the assertion.\n"
-            "5. When it passes, call capture_baseline with the URL and the locators the test uses."
+            "6. When it passes, call capture_baseline with the URL and the locators the test uses.\n"
+            "Finish with the file path, what each test covers, the questions asked and their answers (or any still open), "
+            "and any acceptance criteria you could not automate and why."
         )
 
     # FastMCP (mcp 1.x) has no version argument and would report the SDK's version
