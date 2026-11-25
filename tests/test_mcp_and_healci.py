@@ -32,11 +32,17 @@ def test_mcp_tools_over_protocol(demo, tmp_path, monkeypatch, creds):
             assert (info.serverInfo.name, info.serverInfo.version) == ("k11-selenium-qa", VERSION)
             tools = sorted(t.name for t in (await client.list_tools()).tools)
             assert tools == ["capture_baseline", "check_locator", "explore_page", "heal_locator", "parse_user_story",
-                             "run_tests", "save_login_state", "write_test"]
+                             "review_user_story", "run_tests", "save_login_state", "write_test"]
             assert "story_to_selenium" in [p.name for p in (await client.list_prompts()).prompts]
+
+            vague = _text(await client.call_tool("review_user_story", {"story": "I want login to be fast."}))
+            assert vague["ready"] is False and [q["kind"] for q in vague["questions"]] == ["criteria", "role", "vague-term"]
+            assert "Ask the user" in vague["next"]
 
             story = _text(await client.call_tool("parse_user_story", {"story": "As a shopper, I want to sign in.\n- Valid login shows my name", "url": demo.url}))
             assert "def test_valid_login_shows_my_name" in story["skeleton"] and "conftest" in story
+            assert story["review"]["ready"] is False and story["review"]["open_questions"] == 1   # no failure path yet
+            assert "review_user_story" in story["review"]["note"]
             w = _text(await client.call_tool("write_test", {"path": "test_login.py", "code": story["skeleton"]}))
             assert w["written"] == "tests/test_login.py"
             assert (await client.call_tool("write_test", {"path": "test_login.py", "code": "x"})).isError

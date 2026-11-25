@@ -61,6 +61,7 @@ The annotation became `@FindBy(id = "orders-toggle")`; the cart change was rever
 |---|---|
 | `explore_page` | Opens a URL and lists elements with Selenium locators verified to match exactly one element. |
 | `check_locator` | Counts what a locator matches on a page (1 = good) and whether it's visible. |
+| `review_user_story` | Before any test is written: the questions a careful tester would ask about the story, each with why it matters. |
 | `parse_user_story` | User story → scenarios + a pytest, JUnit 5 or TestNG skeleton (and a `conftest.py` for pytest if you need one). |
 | `write_test` | Python: `test_*.py`, `*_test.py` or `conftest.py` into `tests/`. Java: `.java` files into `src/test/java/`. Refuses other paths; won't overwrite unless asked. |
 | `run_tests` | Runs pytest, Maven or Gradle and returns per-test results with the failing locator and where it's used. |
@@ -71,6 +72,31 @@ The annotation became `@FindBy(id = "orders-toggle")`; the cart change was rever
 Locators are written the way your code writes them. Python: `(By.ID, "email")`, `driver.find_element(By.XPATH, "//button[...]")`. Java: `By.id("email")`, `driver.findElement(By.cssSelector("..."))`, `@FindBy(id = "email")`, `@FindBy(how = How.ID, using = "email")`. The project's language is detected from `pom.xml` / `build.gradle` (override with `QA_MCP_LANGUAGE=python|java`).
 
 Prompt: **`story_to_selenium`**, a guided workflow from story to passing test.
+
+## Ask before you build
+
+Generating tests from an unclear story doesn't remove the ambiguity. It hides it in test code, as
+guesses nobody agreed to. So `/story-to-test` starts with `review_user_story`, which finds what a
+careful tester would ask first:
+
+| Asks about | When the story has |
+|---|---|
+| acceptance criteria | no criteria; only the goal itself |
+| the outcome | a scenario with no Then, or a Then like "works correctly" with nothing to see |
+| the user role | no "As a ..." (permissions and test accounts depend on it) |
+| measurable terms | words a test can't check: fast, easy, many, appropriate, user-friendly... |
+| the limit's number | "expires", "maximum", "up to" with no number |
+| the failure path | only happy paths |
+| the starting state | actions with no Given (who's signed in, what data exists) |
+| undefined terms | with `context` (a glossary or product notes): a term the story relies on that the context never explains |
+
+Each question comes with why it matters and the words that raised it. If there are questions, the
+agent asks you and waits; it doesn't guess. If you tell it to go ahead anyway, each open question
+goes into the test as an `OPEN QUESTION:` comment and into its final report.
+
+The rules are the same as [k11 Playwright QA](https://github.com/K11-Software-Solutions/k11techlab-playwright-qa-mcp)'s:
+both projects test against the same cases (`tests/fixtures/review_cases.json`), so the same story
+gets the same questions whichever tool you use.
 
 ## How self-healing works
 
