@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1 (26 November 2026)
+
+- **Fix:** `review_user_story` asked "What should happen when it goes wrong?" about stories that already describe a rejection, such as "Cancelling is rejected when it already shipped". The failure-path rule now also counts "rejected"/"rejects", "refused"/"refuses", "declined", "disallowed" and "blocked" as failure words. The same rules ship in k11 Playwright QA 0.4.2 and k11 API Functional QA 0.2.2; the shared `tests/fixtures/review_cases.json` has a new case for it.
+
 ## 0.3.0 (25 November 2026): ask before you build
 
 - **Ask before you build:** new `review_user_story` tool. Before tests are generated, it lists the questions a careful tester would ask (missing acceptance criteria, outcomes that can't be asserted, no user role, untestable words, limits without numbers, no failure path, missing preconditions, and, with `context`, terms the context never explains), each with why it matters and the words that raised it.
